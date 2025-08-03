@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db, ref, onValue } from '../firebase';
 import type { Player } from '../types/Player';
 import type { Game } from '../types/Game';
+import { Link } from 'react-router-dom';
 
 function MatchHistory() {
   const [games, setGames] = useState<Game[]>([]);
@@ -37,6 +38,20 @@ function MatchHistory() {
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white p-6 font-sans">
+      <div className="flex justify-between">
+        <Link
+          to="/scoreboard"
+          className="text-zinc-400 hover:text-purple-400 font-semibold"
+        >
+          Scoreboard
+        </Link>
+        <Link
+          to="/control"
+          className="text-zinc-400 hover:text-purple-400 font-semibold"
+        >
+          Control
+        </Link>
+      </div>
       <div className="bg-zinc-800/80 rounded-lg p-6 mt-6 max-w-3xl mx-auto text-white">
         <h2 className="text-2xl font-bold mb-4">Match History</h2>
         <ul className="space-y-4 max-h-96 overflow-y-auto">

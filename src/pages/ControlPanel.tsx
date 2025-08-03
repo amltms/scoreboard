@@ -88,12 +88,20 @@ export default function ControlPanel() {
   return (
     <div className="min-h-screen bg-zinc-900 text-white mx-auto">
       <div className="p-6 max-w-3xl mx-auto">
-        <Link
-          to="/"
-          className="self-start text-zinc-400 hover:text-purple-400 font-semibold"
-        >
-          ← Back to Scoreboard
-        </Link>
+        <div className="flex justify-between">
+          <Link
+            to="/scoreboard"
+            className="text-zinc-400 hover:text-purple-400 font-semibold"
+          >
+            Scoreboard
+          </Link>
+          <Link
+            to="/history"
+            className="text-zinc-400 hover:text-purple-400 font-semibold"
+          >
+            History
+          </Link>
+        </div>
 
         <h1 className="mt-4 text-3xl font-bold mb-6 text-center text-purple-400 drop-shadow-lg">
           Control Panel
