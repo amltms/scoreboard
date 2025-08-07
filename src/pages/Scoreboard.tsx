@@ -1,33 +1,12 @@
-import { useEffect, useState } from 'react';
-import { db, ref, onValue } from '../firebase';
 import type { Player } from '../types/Player';
 import { getColourHex } from '../utils/colourToHex';
 import { FaTrophy, FaSkullCrossbones, FaGamepad } from 'react-icons/fa';
 
-export default function Scoreboard() {
-  const [players, setPlayers] = useState<Player[]>([]);
+type Props = {
+  players: Player[];
+};
 
-  useEffect(() => {
-    const playersRef = ref(db, 'players');
-    return onValue(playersRef, (snapshot) => {
-      const data = snapshot.val() || {};
-      const loaded: Player[] = Object.entries(data).map(([id, val]) => {
-        const p = val as Omit<Player, 'id'>;
-        const gamesWon = p.gamesWon || 0;
-        const gamesLost = p.gamesLost || 0;
-        return {
-          id,
-          name: p.name,
-          colour: p.colour,
-          gamesWon,
-          gamesLost,
-          gamesPlayed: gamesWon + gamesLost,
-        };
-      });
-      setPlayers(loaded);
-    });
-  }, []);
-
+export default function Scoreboard({ players }: Props) {
   return (
     <div className="min-h-screen bg-zinc-900 text-white p-6 font-sans">
       <h1 className="text-5xl mb-6 font-bold text-center tracking-wide text-purple-400 drop-shadow-lg">
@@ -40,6 +19,7 @@ export default function Scoreboard() {
             <tr>
               <th className="p-4 text-center">#</th>
               <th className="p-4 text-center">Name</th>
+              <th className="p-4 text-center">ELO</th>
               <th className="p-4 text-center">Win Rate</th>
               <th className="p-4 text-center">
                 <div className="flex items-center justify-center gap-2">
@@ -60,11 +40,7 @@ export default function Scoreboard() {
           </thead>
           <tbody>
             {players
-              .sort((a, b) => {
-                const aRate = a.gamesPlayed ? a.gamesWon / a.gamesPlayed : 0;
-                const bRate = b.gamesPlayed ? b.gamesWon / b.gamesPlayed : 0;
-                return bRate - aRate;
-              })
+              .sort((a, b) => b.elo - a.elo)
               .map((p, index) => {
                 const rank = index + 1;
 
@@ -102,14 +78,32 @@ export default function Scoreboard() {
                         {p.name}
                       </span>
                     </td>
+                    <td className="p-4 text-center font-bold">
+                      {p.elo ?? 1000}
+                      {p.eloDelta !== undefined && p.eloDelta !== 0 && (
+                        <span
+                          className={`ml-2 font-semibold ${
+                            p.eloDelta > 0 ? 'text-green-400' : 'text-red-400'
+                          }`}
+                        >
+                          ({p.eloDelta > 0 ? '+' : ''}
+                          {p.eloDelta})
+                        </span>
+                      )}
+                    </td>
 
                     <td className="p-4 text-center font-semibold">
-                      {p.gamesPlayed
-                        ? `${((p.gamesWon / p.gamesPlayed) * 100).toFixed(1)}%`
+                      {p.gamesWon + p.gamesLost > 0
+                        ? `${(
+                            (p.gamesWon / (p.gamesWon + p.gamesLost)) *
+                            100
+                          ).toFixed(1)}%`
                         : '0%'}
                     </td>
 
-                    <td className="p-4 text-center">{p.gamesPlayed}</td>
+                    <td className="p-4 text-center">
+                      {p.gamesWon + p.gamesLost}
+                    </td>
 
                     <td className="p-4 text-center text-green-400 font-semibold">
                       {p.gamesWon} 🏆

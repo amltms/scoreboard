@@ -1,8 +1,9 @@
-export interface Player {
+export type Player = {
   id: string;
   name: string;
   colour: string;
   gamesWon: number;
   gamesLost: number;
-  gamesPlayed?: number;
-}
+  elo: number; // <-- Add this
+  eloDelta?: number;
+};
