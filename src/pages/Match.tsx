@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { db, ref, push, set, update } from '../firebase';
 import type { Player } from '../types/Player';
-import type { Game } from '../types/Game';
+import type { Game, Match } from '../types/Game';
 import Nav from '../components/Nav/Nav';
 import { getColourHex } from '../utils/colourToHex';
 import { calculateElo } from '../utils/calculateElo';
@@ -12,9 +12,10 @@ import MatchHistory from '../components/MatchHistory/MatchHistory';
 type Props = {
   players: Player[];
   games: Game[];
+  matches: Match[];
 };
 
-export default function Match({ players, games }: Props) {
+export default function Match({ players, games, matches }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedGameId, setSelectedGameId] = useState('');
   const [winner, setWinner] = useState('');
@@ -63,85 +64,105 @@ export default function Match({ players, games }: Props) {
     });
 
     setWinner('');
-    setSelected([]);
   };
 
   return (
     <div className="min-h-screen bg-zinc-900 text-white px-4 py-6">
       <div className="max-w-3xl mx-auto">
         <Nav />
-        <h1 className="mt-4 text-3xl font-bold mb-6 text-center text-purple-400 drop-shadow-lg">
-          Match Setup
-        </h1>
+        <h2 className="text-3xl">New Match</h2>
+        <hr className="mt-4 mb-4 border-zinc-700" />
 
-        {/* Game Setup */}
-        <div className="bg-zinc-800 rounded-lg p-6 shadow-lg mb-10">
-          <h2 className="text-xl font-bold mb-4">New Game</h2>
-
-          <div className="flex flex-col gap-2 max-h-64 overflow-y-auto mb-4">
-            {players.map((p) => (
-              <label key={p.id} className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(p.id)}
-                  onChange={() => toggleSelect(p.id)}
-                  className="accent-purple-500"
-                />
-                <span
-                  className="px-3 py-1 rounded-md font-mono text-sm w-fit"
-                  style={{ backgroundColor: `${getColourHex(p.colour)}cc` }}
-                >
-                  {p.name.toUpperCase()}
-                </span>
-              </label>
-            ))}
+        <div className="mb-12 flex flex-col gap-3">
+          <div>
+            <label className="text-lg">Select Players</label>
+            <div className="flex gap-4 pt-2 pb-4 overflow-x-auto whitespace-nowrap no-scrollbar">
+              {players.map((p) => {
+                const isSelected = selected.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleSelect(p.id)}
+                    className={`px-4 py-2 rounded-md font-mono uppercase transition-colors duration-200 border-2 ${
+                      isSelected
+                        ? 'border-white font-bold'
+                        : 'border-transparent opacity-80 hover:opacity-100 bg-zinc-600!'
+                    }`}
+                    style={{
+                      backgroundColor: `${getColourHex(p.colour)}cc`,
+                    }}
+                    title={`Click to ${isSelected ? 'deselect' : 'select'}`}
+                  >
+                    {p.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <select
-            className="w-full mb-4 rounded-md bg-zinc-700 px-4 py-2"
-            value={selectedGameId}
-            onChange={(e) => setSelectedGameId(e.target.value)}
-          >
-            <option hidden value="">
-              Select Game
-            </option>
-            {games.map((game) => (
-              <option key={game.id} value={game.id}>
-                {game.name}
-              </option>
-            ))}
-          </select>
+          <div>
+            <label className="text-lg block">Select Game</label>
+            <div className="flex gap-4 pt-2 pb-4 overflow-x-auto whitespace-nowrap no-scrollbar">
+              {games.map((game) => {
+                const isSelected = selectedGameId === game.id;
+                return (
+                  <button
+                    key={game.id}
+                    type="button"
+                    onClick={() => setSelectedGameId(game.id)}
+                    className={`px-4 py-2 rounded-md shrink-0 transition-colors duration-200 font-medium ${
+                      isSelected
+                        ? 'bg-white text-black font-bold'
+                        : 'bg-zinc-700 text-white hover:bg-zinc-600'
+                    }`}
+                    title={`Click to select ${game.name}`}
+                  >
+                    {game.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="text-lg block">Select Winner</label>
+            <div className="flex gap-4 pt-2 h-18 overflow-x-auto whitespace-nowrap no-scrollbar">
+              {selected.map((id) => {
+                const player = players.find((p) => p.id === id);
+                if (!player) return null;
 
-          <select
-            className="w-full mb-4 rounded-md bg-zinc-700 px-4 py-2"
-            value={winner}
-            onChange={(e) => setWinner(e.target.value)}
-          >
-            <option hidden value="">
-              Select Winner
-            </option>
-            {selected.map((id) => {
-              const player = players.find((p) => p.id === id);
-              return (
-                player && (
-                  <option key={id} value={id}>
-                    {player.name}
-                  </option>
-                )
-              );
-            })}
-          </select>
+                const isWinner = winner === id;
 
-          <button
-            disabled={!winner || selected.length < 2}
-            onClick={submitMatch}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 py-3 rounded-md font-semibold"
-          >
-            Submit
-          </button>
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setWinner(id)}
+                    className={`px-4 py-2 rounded-md font-mono transition-all h-fit duration-200 ${
+                      isWinner && 'bg-white text-black font-bold'
+                    }`}
+                    style={{
+                      backgroundColor: !isWinner
+                        ? `${getColourHex(player.colour)}cc`
+                        : undefined,
+                    }}
+                  >
+                    {player.name.toUpperCase()}
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              disabled={!winner || selected.length < 2}
+              onClick={submitMatch}
+              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 py-3 rounded-md font-semibold"
+            >
+              Submit
+            </button>
+          </div>
         </div>
 
-        <MatchHistory players={players} games={games} />
+        <MatchHistory players={players} games={games} matches={matches} />
       </div>
     </div>
   );

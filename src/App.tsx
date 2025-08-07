@@ -1,16 +1,31 @@
 import { useEffect, useState } from 'react';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import { db, ref, onValue } from './firebase';
 import type { Player } from './types/Player';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import type { Game, Match } from './types/Game';
 import Scoreboard from './pages/Scoreboard';
 import Control from './pages/Control';
-import Match from './pages/Match';
-import type { Game } from './types/Game';
+import MatchPage from './pages/Match';
+import Profile from './pages/Profile';
 
 export default function App() {
   const [isMobile, setIsMobile] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
   const [games, setGames] = useState<Game[]>([]);
+  const [matches, setMatches] = useState<Match[]>([]);
+
+  useEffect(() => {
+    const unsub = onValue(ref(db, 'matches'), (snap) => {
+      const data = snap.val() || {};
+      const loaded = Object.entries(data).map(([id, val]) => ({
+        id,
+        ...(val as Omit<Match, 'id'>),
+      }));
+      setMatches(loaded.reverse());
+    });
+
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     const gamesRef = ref(db, 'games');
@@ -69,7 +84,11 @@ export default function App() {
               path="/"
               element={
                 isMobile ? (
-                  <Match players={players} games={games} />
+                  <MatchPage
+                    players={players}
+                    games={games}
+                    matches={matches}
+                  />
                 ) : (
                   <Scoreboard players={players} />
                 )
@@ -81,11 +100,19 @@ export default function App() {
             />
             <Route
               path="/match"
-              element={<Match players={players} games={games} />}
+              element={
+                <MatchPage players={players} games={games} matches={matches} />
+              }
             />
             <Route
               path="/control"
               element={<Control players={players} games={games} />}
+            />
+            <Route
+              path="/profile/:id"
+              element={
+                <Profile players={players} games={games} matches={matches} />
+              }
             />
           </Routes>
         </HashRouter>
