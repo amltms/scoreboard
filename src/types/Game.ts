@@ -4,6 +4,15 @@ export type Game = {
   type?: string;
 };
 
+export type GameStats = {
+  bayesAlpha: number;
+  bayesBeta: number;
+  bayesWinRate: number;
+  gamesPlayed: number;
+  gamesWon: number;
+  gamesLost: number;
+};
+
 export type Match = {
   id?: string; // optional, Firebase key
   timestamp: number; // epoch milliseconds

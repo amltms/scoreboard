@@ -7,6 +7,7 @@ import Scoreboard from './pages/Scoreboard';
 import Control from './pages/Control';
 import MatchPage from './pages/Match';
 import Profile from './pages/Profile';
+import { onChildAdded } from 'firebase/database';
 
 export default function App() {
   const [isMobile, setIsMobile] = useState(false);
@@ -41,29 +42,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsub = onValue(ref(db, 'players'), (snapshot) => {
-      const data = snapshot.val() || {};
-      const loaded: Player[] = Object.entries(data).map(([id, val]) => {
-        const p = val as Omit<Player, 'id'>;
-        const gamesWon = p.gamesWon || 0;
-        const gamesLost = p.gamesLost || 0;
+    const playersRef = ref(db, 'players');
 
-        return {
-          id,
-          name: p.name,
-          colour: p.colour,
-          gamesWon,
-          gamesLost,
-          gamesPlayed: gamesWon + gamesLost,
-          elo: p.elo ?? 1000,
-          eloDelta: p.eloDelta ?? 0,
-        };
-      });
-
-      setPlayers(loaded);
+    const handleChildAdded = onChildAdded(playersRef, (snapshot) => {
+      const value = snapshot.val() as Omit<Player, 'id'>;
+      const id = snapshot.key!;
+      setPlayers((prev) => [...prev, { id, ...value }]);
     });
 
-    return () => unsub();
+    const handleValue = onValue(playersRef, (snapshot) => {
+      const data = snapshot.val() ?? {};
+      const arr: Player[] = Object.entries(data).map(([id, value]) => ({
+        id,
+        ...(value as Omit<Player, 'id'>),
+      }));
+      setPlayers(arr); // keep full sync
+    });
+
+    return () => {
+      handleChildAdded();
+      handleValue();
+    };
   }, []);
 
   useEffect(() => {
@@ -90,13 +89,13 @@ export default function App() {
                     matches={matches}
                   />
                 ) : (
-                  <Scoreboard players={players} />
+                  <Scoreboard players={players} games={games} />
                 )
               }
             />
             <Route
               path="/scoreboard"
-              element={<Scoreboard players={players} />}
+              element={<Scoreboard players={players} games={games} />}
             />
             <Route
               path="/match"

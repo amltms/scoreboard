@@ -27,13 +27,20 @@ export default function Profile({ players, games, matches }: Props) {
       </div>
     );
 
-  const gamesPlayed = player.gamesWon + player.gamesLost;
-  const winRate = gamesPlayed
-    ? ((player.gamesWon / gamesPlayed) * 100).toFixed(1)
-    : '0';
+  // Select default game (Catan) or first game
+  const selectedGame =
+    games.find((g) => g.name.toLowerCase() === 'catan') ?? games[0];
+  const gameStats = player.games?.[selectedGame.id];
+
+  const gamesPlayed = gameStats?.gamesPlayed ?? 0;
+  const wins = gameStats?.gamesWon ?? 0;
+  const losses = gameStats?.gamesLost ?? 0;
+
+  const bayesWinRate = gameStats?.bayesWinRate ?? 0.5;
+  const realWinRate = gamesPlayed ? wins / gamesPlayed : 0;
 
   const playerMatches = matches
-    .filter((m) => m.players.some((p) => p === player.id))
+    .filter((m) => m.players.includes(player.id))
     .sort((a, b) => (b.timestamp as number) - (a.timestamp as number));
 
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p]));
@@ -59,20 +66,20 @@ export default function Profile({ players, games, matches }: Props) {
                 {player.name}
               </h1>
 
-              {/* Stats - horizontal scroll on mobile */}
+              {/* Stats */}
               <dl className="flex sm:grid sm:grid-cols-3 gap-4 overflow-x-auto scrollbar-hide">
                 {[
-                  { label: 'ELO', value: player.elo },
-                  { label: 'Games Played', value: gamesPlayed },
-                  { label: 'Wins', value: player.gamesWon },
-                  { label: 'Losses', value: player.gamesLost },
-                  { label: 'Win Rate', value: `${winRate}%` },
                   {
-                    label: 'ELO Change',
-                    value: `${(player.eloDelta ?? 0) >= 0 ? '+' : ''}${
-                      player.eloDelta ?? 0
-                    }`,
+                    label: 'Bayesian Win %',
+                    value: `${(bayesWinRate * 100).toFixed(1)}%`,
                   },
+                  {
+                    label: 'Real Win %',
+                    value: `${(realWinRate * 100).toFixed(1)}%`,
+                  },
+                  { label: 'Games Played', value: gamesPlayed },
+                  { label: 'Wins', value: wins },
+                  { label: 'Losses', value: losses },
                 ].map((stat) => (
                   <div
                     key={stat.label}
@@ -111,7 +118,6 @@ export default function Profile({ players, games, matches }: Props) {
                       key={id}
                       className={`relative rounded-2xl overflow-hidden shadow-md bg-black`}
                     >
-                      {/* Background image */}
                       <div className="absolute inset-0">
                         <img
                           src={`./${gameName

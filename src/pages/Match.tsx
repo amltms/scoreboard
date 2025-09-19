@@ -6,7 +6,6 @@ import type { Player } from '../types/Player';
 import type { Game, Match } from '../types/Game';
 import Nav from '../components/Nav/Nav';
 import { getColourHex } from '../utils/colourToHex';
-import { calculateElo } from '../utils/calculateElo';
 import MatchHistory from '../components/MatchHistory/MatchHistory';
 
 type Props = {
@@ -24,35 +23,45 @@ export default function Match({ players, games, matches }: Props) {
     setSelected((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
     );
-
   const submitMatch = () => {
     if (
       !winner ||
       !selectedGameId ||
       selected.length < 2 ||
       !selected.includes(winner)
-    )
+    ) {
       return;
+    }
 
     const participants = selected
       .map((id) => players.find((p) => p.id === id))
       .filter(Boolean) as Player[];
 
     participants.forEach((player) => {
-      let newElo = player.elo;
       const isWinner = player.id === winner;
 
-      participants.forEach((opponent) => {
-        if (opponent.id !== player.id) {
-          newElo = calculateElo(newElo, opponent.elo, isWinner ? 1 : 0);
-        }
-      });
+      // Pull existing stats for this game (or start fresh with prior)
+      const gameStats = player.games?.[selectedGameId] ?? {
+        bayesAlpha: 1, // prior α
+        bayesBeta: 1, // prior β
+        bayesWinRate: 0.5,
+        gamesPlayed: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+      };
 
-      update(ref(db, `players/${player.id}`), {
-        gamesWon: player.gamesWon + (isWinner ? 1 : 0),
-        gamesLost: player.gamesLost + (isWinner ? 0 : 1),
-        elo: newElo,
-        eloDelta: newElo - player.elo,
+      const newAlpha = gameStats.bayesAlpha + (isWinner ? 1 : 0);
+      const newBeta = gameStats.bayesBeta + (isWinner ? 0 : 1);
+
+      const newWinRate = newAlpha / (newAlpha + newBeta);
+
+      update(ref(db, `players/${player.id}/games/${selectedGameId}`), {
+        bayesAlpha: newAlpha,
+        bayesBeta: newBeta,
+        bayesWinRate: newWinRate,
+        gamesPlayed: gameStats.gamesPlayed + 1,
+        gamesWon: gameStats.gamesWon + (isWinner ? 1 : 0),
+        gamesLost: gameStats.gamesLost + (isWinner ? 0 : 1),
       });
     });
 

@@ -11,19 +11,22 @@ export default function GameForm({ games }: { games: Game[] }) {
     if (!trimmed) return;
 
     if (editingGameId) {
-      set(ref(db, `games/${editingGameId}`), { name: trimmed });
+      // Update existing game
+      set(ref(db, `games/${editingGameId}`), {
+        id: editingGameId,
+        name: trimmed,
+      });
       setEditingGameId(null);
     } else {
+      // Add new game
       const newRef = push(ref(db, 'games'));
-      set(newRef, { name: trimmed });
+      set(newRef, { id: newRef.key, name: trimmed });
     }
 
     setNewGameName('');
   };
 
-  const deleteGame = (id: string) => {
-    remove(ref(db, `games/${id}`));
-  };
+  const deleteGame = (id: string) => remove(ref(db, `games/${id}`));
 
   const editGame = (game: Game) => {
     setNewGameName(game.name);
