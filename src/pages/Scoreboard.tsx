@@ -16,9 +16,9 @@ export default function Scoreboard({ players, games }: Props) {
   const [selectedGameId, setSelectedGameId] = useState('');
 
   useEffect(() => {
-    if (games.length > 0 && !selectedGameId) {
-      const catanGame = games.find((g) => g.name.toLowerCase() === 'catan');
-      setSelectedGameId(catanGame?.id ?? games[0].id);
+    if (!selectedGameId && games.length) {
+      const catan = games.find((g) => g.name.toLowerCase() === 'catan');
+      setSelectedGameId(catan?.id ?? games[0].id);
     }
   }, [games, selectedGameId]);
 
@@ -30,8 +30,8 @@ export default function Scoreboard({ players, games }: Props) {
   }, [players]);
 
   const triggerFireworks = () => {
-    const duration = 2 * 1000;
-    const animationEnd = Date.now() + duration;
+    const duration = 2000;
+    const end = Date.now() + duration;
     const defaults = {
       startVelocity: 30,
       spread: 360,
@@ -39,46 +39,36 @@ export default function Scoreboard({ players, games }: Props) {
       zIndex: 9999,
     };
 
-    const randomInRange = (min: number, max: number) =>
+    const rand = (min: number, max: number) =>
       Math.random() * (max - min) + min;
 
-    const interval: NodeJS.Timeout = setInterval(() => {
-      const timeLeft = animationEnd - Date.now();
+    const interval = setInterval(() => {
+      const timeLeft = end - Date.now();
       if (timeLeft <= 0) return clearInterval(interval);
 
-      const particleCount = 50 * (timeLeft / duration);
-      confetti({
-        ...defaults,
-        particleCount,
-        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
-      });
-      confetti({
-        ...defaults,
-        particleCount,
-        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
-      });
+      const count = 50 * (timeLeft / duration);
+      [0.1, 0.9].forEach((x) =>
+        confetti({
+          ...defaults,
+          particleCount: count,
+          origin: { x: rand(x - 0.05, x + 0.05), y: Math.random() - 0.2 },
+        })
+      );
     }, 250);
   };
 
-  const gameOptions = games.map((g) => (
-    <option key={g.id} value={g.id}>
-      {g.name}
-    </option>
-  ));
-
   const getStats = (p: Player) => {
     const stats = p.games?.[selectedGameId];
-    if (!stats) return { winRate: 0, played: 0, won: 0, lost: 0 };
-
-    return {
-      winRate: stats.gamesPlayed ? stats.bayesWinRate : 0,
-      played: stats.gamesPlayed,
-      won: stats.gamesWon,
-      lost: stats.gamesLost,
-    };
+    return stats
+      ? {
+          winRate: stats.gamesPlayed ? stats.bayesWinRate : 0,
+          played: stats.gamesPlayed,
+          won: stats.gamesWon,
+          lost: stats.gamesLost,
+        }
+      : { winRate: 0, played: 0, won: 0, lost: 0 };
   };
 
-  // Sort by Bayesian win rate descending
   const sortedPlayers = [...players]
     .filter((p) => p.games?.[selectedGameId])
     .sort(
@@ -87,11 +77,10 @@ export default function Scoreboard({ players, games }: Props) {
         (a.games![selectedGameId]?.bayesWinRate ?? 0)
     );
 
-  // Split players into "experienced" and "new"
-  const [experienced, newcomers] = sortedPlayers.reduce(
-    (acc: [Player[], Player[]], p) => {
-      const stats = getStats(p);
-      if (stats.played >= 3) acc[0].push(p);
+  const [experienced, newcomers] = sortedPlayers.reduce<[Player[], Player[]]>(
+    (acc, p) => {
+      const { played } = getStats(p);
+      if (played >= 3) acc[0].push(p);
       else acc[1].push(p);
       return acc;
     },
@@ -100,22 +89,30 @@ export default function Scoreboard({ players, games }: Props) {
 
   const allPlayers = [...experienced, ...newcomers];
 
+  const rankStyles: Record<number, string> = {
+    1: 'border-2 border-yellow-400 bg-yellow-500/15 shadow-yellow-500/60',
+    2: 'border-2 border-gray-400 bg-gray-500/25 shadow-gray-400/60',
+    3: 'border-2 border-amber-700 bg-amber-700/15 shadow-amber-700/60',
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 text-white p-6 font-sans">
-      <h1 className="text-5xl mb-8 font-bold text-center tracking-wide text-purple-400 drop-shadow-lg">
+    <div className="min-h-screen bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 text-white p-6 font-sans relative">
+      {/* Game selector */}
+      <select
+        value={selectedGameId}
+        onChange={(e) => setSelectedGameId(e.target.value)}
+        className="absolute top-6 right-6 z-50 rounded bg-zinc-800 px-4 py-2 border border-zinc-700 focus:border-purple-500 focus:outline-none"
+      >
+        {games.map((g) => (
+          <option key={g.id} value={g.id}>
+            {g.name}
+          </option>
+        ))}
+      </select>
+
+      <h1 className="text-5xl font-bold text-center mb-6 tracking-wide text-purple-400 drop-shadow-lg">
         🏆 Scoreboard
       </h1>
-
-      {/* Game selector */}
-      <div className="mb-6 flex justify-center">
-        <select
-          value={selectedGameId}
-          onChange={(e) => setSelectedGameId(e.target.value)}
-          className="rounded bg-zinc-800 px-4 py-2 border border-zinc-700 focus:border-purple-500 focus:outline-none"
-        >
-          {gameOptions}
-        </select>
-      </div>
 
       <div className="overflow-x-auto">
         <table className="w-full border-separate border-spacing-y-4">
@@ -143,23 +140,16 @@ export default function Scoreboard({ players, games }: Props) {
           </thead>
 
           <tbody>
-            {allPlayers.map((p, index) => {
-              const rank = index + 1;
+            {allPlayers.map((p, idx) => {
+              const rank = idx + 1;
               const stats = getStats(p);
-              const rankStyles: { [key: string]: string } = {
-                1: 'border-2 border-yellow-400 bg-yellow-500/15 shadow-yellow-500/60',
-                2: 'border-2 border-gray-400 bg-gray-500/25 shadow-gray-400/60',
-                3: 'border-2 border-amber-700 bg-amber-700/15 shadow-amber-700/60',
-              };
-
-              // Apply opacity for newcomers
               const opacityClass = stats.played < 3 ? 'opacity-50' : '';
 
               return (
                 <tr
                   key={p.id}
                   className={`text-2xl shadow-lg text-center ${
-                    rankStyles[String(rank)] || 'bg-zinc-800/60'
+                    rankStyles[rank] || 'bg-zinc-800/60'
                   } ${opacityClass}`}
                 >
                   <td className="p-4 font-bold text-3xl">{rank}</td>
@@ -167,15 +157,13 @@ export default function Scoreboard({ players, games }: Props) {
                     <Link
                       to={`/profile/${p.id}`}
                       title={`Player colour: ${p.colour}`}
-                      style={{
-                        backgroundColor: `${getColourHex(p.colour)}cc`,
-                      }}
+                      style={{ backgroundColor: `${getColourHex(p.colour)}cc` }}
                       className="inline-block px-4 py-2 rounded-md font-mono text-lg shadow-inner uppercase tracking-wide text-white w-full hover:brightness-110 transition"
                     >
                       {p.name}
                     </Link>
                   </td>
-                  <td className="p-4 text-center font-semibold">
+                  <td className="p-4 font-semibold">
                     {(stats.winRate * 100).toFixed(1)}%
                   </td>
                   <td className="p-4 text-center">{stats.played}</td>
